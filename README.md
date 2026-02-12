@@ -9,10 +9,10 @@ and it includes functions for forward transformation (`osktfast`) and back-trans
 
 ## Install osktnorm
 
-You can install the package from CRAN using:
+You can install the package from GitHub running the following command:
 
 ```r
-install.packages("osktnorm", repos="https://cloud.r-project.org", dep=TRUE)
+devtools::install_github("zcebeci/osktnorm") 
 ```
 
 After installation, load the package:
@@ -119,3 +119,4 @@ To cite the `osktnorm` package in publications, run:
 ```r
 citation("osktnorm")
 ```
+
