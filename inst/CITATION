@@ -1,0 +1,22 @@
+bibentry(
+  bibtype = "Manual",
+  title = "osktnorm: Normality Transformation Minimizing Asymmetry and Peakedness",
+  author = person("Zeynel", "Cebeci"),
+  year = "2026",
+  note = "R package version 1.0.1",
+  url = "https://github.com/zcebeci/osktnorm",
+  textVersion = "Cebeci, Z. (2026). osktnorm: Normality Transformation Minimizing Asymmetry and Peakedness. R package version 1.0.1."
+)
+
+bibentry(
+  bibtype = "Article",
+  title = "Normality Transformation Minimizing Asymmetry and Peakedness using Optimized Skewness and Kurtosis (OSKT)",
+  author = person("Zeynel", "Cebeci"),
+  journal = "...", 
+  year = "2026",
+  volume = "XX",
+  number = "X",
+  pages = "XXX--XXX",
+  doi = "",
+  textVersion = paste0("Cebeci, Z. (2026). Normality Transformation Minimizing Asymmetry and Peakedness using Optimized Skewness and Kurtosis (OSKT). Journal ..., XX(X), XXX-XXX.")
+)

@@ -1,0 +1,314 @@
+---
+title: "OSKT: Normalization via Optimized Skewness and Kurtosis"
+author: "Zeynel Cebeci"
+date: "2026-2-2"
+output:
+  html_document:
+    theme: cosmo
+    highlight: tango
+    toc: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{OSKT: Normality Transformation via Optimized Skewness and Kurtosis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = " ",
+  options("width" = 120),
+  fig.width=7, fig.height=5
+)
+```
+
+<style>
+body {
+  max-width: 90%;
+  margin: auto;
+  font-size: 11pt;
+  line-height: 1.2;
+  text-align: justify;
+}
+
+h1 { font-size: 2.2em; }
+h2 { font-size: 1.8em; }
+h3 { font-size: 1.5em; }
+
+p, li {
+  font-size: 1.05em;
+}
+
+code, pre {
+  font-size: 0.95em;
+}
+
+table {
+  font-size: 0.95em;
+}
+</style>
+
+# Introduction
+
+The Normality Transformation via Optimized Skewness and Kurtosis (OKST) is a normality 
+method that simultaneously evaluates deviations in skewness and kurtosis of non-normal data.
+
+# Required Packages
+The recent version of the package `osktnorm` from CRAN is installed with the following command:
+
+```{r, eval=FALSE, message=FALSE, warning=FALSE}
+install.packages("osktnorm", repos="https://cloud.r-project.org", dep=TRUE)
+```
+
+If the package `osktnorm` has already been installed, load it into R working environment 
+by using the following command:
+
+```{r loadlib, eval=TRUE, message=FALSE, warning=FALSE}
+library(osktnorm)
+```
+# Normality Transformation Using OSKT
+
+In the following code snippet, a right-skewed distribution with 300 observations is generated 
+using `rlnorm` of R and then normalized using OSKT. For this purpose, the `okstfast` function is applied 
+by simply passing the original observation vector to be transformed, and the results are stored 
+in the object `res_okst`.
+
+In this result object `res_okst`, the transformed values are contained in the `transformed` vector. 
+The element `g` contains the skewness parameter used in the transformation, which is obtained via 
+optimization L-BFGS, while `h` contains the kurtosis parameter. In the output, `value` indicates the 
+minimum `A2` value reached during optimization, i.e., the Anderson–Darling statistic at the optimum..
+
+```{r extractresults, eval=TRUE, message=FALSE, warning=FALSE}
+set.seed(12)
+x_orig <- rlnorm(300, mean=0, sd=0.5) # Generate right-skewed data
+
+# Apply OSKT normality
+res_oskt <- osktfast(x_orig) 
+
+x_transformed <- res_oskt$transformed
+head(x_transformed, 5)
+
+g_star <- res_oskt$g
+h_star <- res_oskt$h
+A2 <- res_oskt$value
+
+cat("Optimized skewness: ", g_star, "\n")
+cat("Optimized kurtosis: ", h_star, "\n")
+cat("Anderson-Darling statistic at the optimum: ", A2, "\n")
+```
+The code snippet below visualizes the original and normalized observations using histograms 
+and density plots for comparison purposes. To ensure a fair comparison, 25 common breaks are 
+set for both histograms. Upon examining the plots, it is evident that the data transformed 
+via OSKT (red) approximates the normal distribution (black dashed line).
+
+```{r visualization, eval=TRUE, message=FALSE, warning=FALSE}
+breaks <- pretty(range(c(x_orig, x_transformed)), n = 25)
+h_orig  <- hist(x_orig, breaks = breaks, plot = FALSE)
+h_trans <- hist(x_transformed, breaks = breaks, plot = FALSE)
+
+d_orig  <- density(x_orig); d_trans <- density(x_transformed)
+
+ymax <- max(c(h_orig$density, h_trans$density, d_orig$y,d_trans$y, dnorm(0)))
+hist(x_orig, breaks = breaks, freq = FALSE, ylim = c(0, ymax * 1.05), 
+     col = rgb(0.2, 0.4, 0.8, 0.4), border = "white", 
+     main = "Before and After OSKT Transformation", xlab = "Value")
+lines(d_orig, col = "blue", lwd = 2)
+
+hist(x_transformed, breaks = breaks, freq = FALSE,
+     col = rgb(0.8, 0.3, 0.3, 0.4), border = "white", add = TRUE)
+lines(d_trans, col = "red", lwd = 2)
+
+curve(dnorm(x), add = TRUE, lwd = 2, lty = 2, col = "black") # Standard normal reference
+
+legend("topleft",
+   legend = c("Original", "Transformed", "Original Density", "OSKT Density", "Standard Normal"),
+   col = c(rgb(0.2,0.4,0.8,0.6), rgb(0.8,0.3,0.3,0.6), "blue", "red", "black"),
+   lwd = c(10, 10, 2, 2, 2), lty = c(1, 1, 1, 1, 2), bty = "n")
+```
+
+# Back Transformation: Recovering Original Values
+Back-transformation (transforming the transformed values back to the original scale) 
+or reverse transformation can be performed in the package using the `backost` and `backostfast`
+functions. The former is slower because it recovers values using R’s `uniroot` function, 
+whereas `backostfast` uses the Brent–Dekker algorithm. Since this function is implemented 
+in C++, it runs faster; however, there may be negligible differences in precision 
+(on the order of `> 1e-4`).
+
+In the example below, assigning "brent" to the method argument specifies the use of 
+the Brent–Dekker algorithm. Another option is "nr" for the Newton–Raphson method. 
+This method is faster than the former but may suffer from precision issues. 
+For this reason, using "auto" as the method in backostfast is recommended; this is 
+also the default behavior when method is not explicitly specified. In the automatic 
+method selection, Newton–Raphson is attempted first, and if it fails, the Brent option 
+is tried. In this way, speed is prioritized first, and accuracy is prioritized 
+if the faster method fails.
+
+In the example below, make sure that the `g` argument of `backostfast` is assigned 
+the `g_star` returned in the example above, and the `h` argument is assigned `h_star`.
+
+```{r backtransformation, eval=TRUE, message=FALSE, warning=FALSE}
+X_mean <- mean(x_orig)
+X_sd   <- sd(x_orig)
+
+res_back <- backosktfast(
+              Z = x_transformed,
+              X_mean = X_mean, X_sd = X_sd,
+              g = g_star, h = h_star,
+              method = "brent")
+
+x_recovered <- res_back$X_orig
+head(x_recovered, 5)
+```
+Overlaying histograms can be useful for diagnosing recovered values and assessing accuracy. 
+In the plot, it can be seen that the histogram of the recovered values (green) almost perfectly 
+overlaps with the histogram of the original values (blue). Below, the results of a comparison 
+with the original values are also provided, using a tolerance of 1e-6 (which can be adjusted 
+as desired).
+
+```{r backtransformation2, eval=TRUE, message=FALSE, warning=FALSE}
+breaks <- pretty(range(c(x_orig, x_transformed, x_recovered)), n = 30)
+hist(x_orig, breaks = breaks, freq = FALSE, col = rgb(0.2, 0.4, 0.9, 0.4),
+  border = "white", main="OSKT Transformation & Back Transformation", xlab="Value")
+hist(x_transformed, breaks = breaks, freq = FALSE, col = rgb(0.8, 0.3, 0.3, 0.4), 
+  border = "white", add=TRUE)
+hist(x_recovered, breaks = breaks, freq = FALSE, col = rgb(0.2,0.8,0.2,0.4), 
+  border = "white", add=TRUE)
+
+legend("topleft", legend = c("Original","Transformed","Back-transformed"),
+       fill = c(rgb(0.2,0.4,0.8,0.4), rgb(0.8,0.3,0.3,0.4), rgb(0.2,0.8,0.2,0.4)))
+       
+(all.equal(x_orig, x_recovered, tolerance = 1e-6)) # Comparison to the originals with a tolerance
+
+```
+# Back-transformation Diagnostics
+In the code snippet below, the original values and the recovered values obtained 
+via back-transformation are compared using various criteria. The difference between 
+the original and recovered values is treated as the back-transformation error, and 
+error-based performance metrics such as Mean Absolute Error (MAE), Maximum Absolute 
+Error (MAXE), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE) can be 
+computed. In addition, for diagnostic analysis, the correlation coefficient between 
+the original and recovered values, as well as the regression coefficient and goodness 
+of fit measured by R-squared, can also be examined.
+
+```{r backdiagnostics, eval=TRUE, message=FALSE, warning=FALSE}
+ok <- is.finite(x_orig) & is.finite(x_recovered) # Remove any non-finite values
+
+xo <- x_orig[ok]
+xr <- x_recovered[ok]
+err <- xr - xo #Error
+
+# Performance metrics
+MAE  <- mean(abs(err))
+MAXE <- max(abs(err))
+MSE  <- mean(err^2)
+RMSE <- sqrt(MSE)
+
+# Correlation and R^2
+COR  <- cor(xo, xr)
+R2   <- COR^2
+
+# Linear fit (recovered ~ original)
+fit <- lm(xr ~ xo)
+slope     <- coef(fit)[2]
+intercept <- coef(fit)[1]
+
+# Summary table
+back_stats <- data.frame(
+  MSE = MSE, RMSE = RMSE, MAE = MAE, MaxError = MAXE,
+  Correlation= COR, R2 = R2, Slope = slope, Intercept  = intercept)
+
+round(t(back_stats), 8)
+
+# Regression line for diagnostic
+plot(xo, xr,
+     pch = 16, cex = 0.6, col = rgb(0.2, 0.2, 0.7, 0.4),
+     xlab = "Original values", ylab = "Back-transformed values",
+     main = "OSKT Back-transformation Accuracy")
+
+abline(0, 1, col = "red", lwd = 2, lty = 3) # 1:1 reference line
+abline(fit, col = "darkgreen", lwd = 3) # Fitted regression line
+
+legend("topleft",
+       legend = c("y = x (ideal)", "Fitted line"),
+       col = c("red", "darkgreen"),
+       lwd = 2, lty = c(2,1), bty = "n")
+```
+
+# Comparison of Normality Methods
+Below, a left-skewed variable with 300 observations is generated using the `ghdist` 
+function from the `groupcompare` package. This data is then transformed using 
+the Box-Cox (BC),  Yeo-Johnson (YJ), and OSKT methods. The transformed values are 
+subsequently tested for normality using the Shapiro–Wilk (SW) normality test, as well 
+as the Cramer-von Misses (CVM), and Wang-Zu ZA tests available in the `osktnorm` package. 
+In addition, the Pearson P statistic (PPM) is computed and used as a metric that 
+evaluates the transformed values across the entire distribution, from the left 
+tail to the right tail.
+
+```{r normality-table, message=FALSE, warning=FALSE}
+# Generate left-skewed data
+set.seed(12)
+x_orig <- groupcompare::ghdist(n=300, A=0, B=1, g=-0.49, h=0)
+x_transformed <- osktfast(x_orig)$transformed
+
+breaks <- pretty(range(c(x_orig, x_transformed)), n = 25)
+h_orig  <- hist(x_orig, breaks = breaks, plot = FALSE)
+h_trans <- hist(x_transformed, breaks = breaks, plot = FALSE)
+
+d_orig  <- density(x_orig); d_trans <- density(x_transformed)
+
+ymax <- max(c(h_orig$density, h_trans$density, d_orig$y,d_trans$y, dnorm(0)))
+hist(x_orig, breaks = breaks, freq = FALSE, ylim = c(0, ymax * 1.05), 
+     col = rgb(0.2, 0.4, 0.8, 0.4), border = "white", 
+     main = "Before and After OSKT Transformation", xlab = "Value")
+lines(d_orig, col = "blue", lwd = 2)
+
+hist(x_transformed, breaks = breaks, freq = FALSE,
+     col = rgb(0.8, 0.3, 0.3, 0.4), border = "white", add = TRUE)
+lines(d_trans, col = "red", lwd = 2)
+
+curve(dnorm(x), add = TRUE, lwd = 2, lty = 2, col = "black") # Standard normal reference
+
+legend("topleft",
+   legend = c("Original", "Transformed", "Original Density", "OSKT Density", "Standard Normal"),
+   col = c(rgb(0.2,0.4,0.8,0.6), rgb(0.8,0.3,0.3,0.6), "blue", "red", "black"),
+   lwd = c(10, 10, 2, 2, 2), lty = c(1, 1, 1, 1, 2), bty = "n")
+
+# Normality tests with BC, YJ and OSKT 
+x_bc <- boxcox(x_orig, makepositive=TRUE)$transformed # Box-Cox transformation
+x_yj <- yeojohnson(x_orig)$transformed  # Yeo-Johnson transformation
+x_oskt <- osktfast(x_orig)$transformed # OSKT
+
+# Normality tests and moments
+get_stats <- function(x) {
+  x <- x[is.finite(x)]
+  c(
+    Skew = mean((x - mean(x))^3) / sd(x)^3,
+    Kurt = mean((x - mean(x))^4) / sd(x)^4 - 3,
+    SW  = shapiro.test(x)$p.value,
+    ZA  = zatest(x, nsim=100)$p.value,
+    CVM = cvmtest(x)$p.value,
+    PPM = unname(pearsonp(x)$statistic)
+  )
+}
+
+# Normality results table
+pval_table <- rbind(
+  ORG  = get_stats(x_orig),
+  BC  = get_stats(x_bc),
+  YJ   = get_stats(x_yj),
+  OSKT = get_stats(x_oskt)
+)
+
+pval_table <- as.data.frame(round(pval_table, 4))
+pval_table
+```
+Upon examining the table above, it is observed that OSKT reduces kurtosis close to 0, 
+whereas YJ is more effective in reducing skewness. However, according to the PPM statistic, 
+the best performance is obtained by OSKT with a value of 0.56, indicating that the method attempts 
+to correct the entire distribution, not just the tails. Based on the SW and CVM normality tests, 
+both YJ and OSKT are successful in normalizing the data, but according to the ZA test, neither 
+method performs adequately. In conclusion, considering the SW, CVM, and PPM results as well as 
+the reduction in kurtosis, OSKT demonstrates better performance compared to the other methods 
+evaluated.
+

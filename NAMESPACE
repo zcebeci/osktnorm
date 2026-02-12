@@ -1,0 +1,29 @@
+useDynLib(osktnorm, .registration = TRUE)
+import(doParallel)
+import(parallel)
+import(foreach)
+importFrom(Rcpp, sourceCpp)
+importFrom(stats,
+  mad, median, sd, na.omit, optim, optimize,
+  pchisq, pnorm, qnorm, rnorm, quantile,
+  shapiro.test, uniroot
+)
+importFrom(groupcompare, ghdist)
+export(
+  abc,
+  backoskt,
+  backosktfast,
+  int,
+  lambert,
+  boxcox,
+  cvmtest,
+  oskt,
+  osktfast,
+  pearsonp,
+  rjbtest,
+  rewbc,
+  rewyj,
+  yeojohnson,
+  zatest,
+  zctest
+)

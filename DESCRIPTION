@@ -1,0 +1,30 @@
+Package: osktnorm
+Type: Package
+Title: Normality Transformation Minimizing Asymmetry and Peakedness
+Version: 1.0.1
+Date: 2026-02-02
+Authors@R: 
+    person("Zeynel", "Cebeci", 
+           email = "cebeciz@gmail.com", 
+           role = c("aut", "cre"))
+Author: Zeynel Cebeci [aut, cre] 
+Maintainer: Zeynel Cebeci <cebeciz@gmail.com>
+Description: Implements the Optimized Skewness and Kurtosis Transformation
+    (OSKT), a moment-targeting normality transformation designed to
+    simultaneously reduce asymmetry and excess peakedness in non-normal
+    data. The method is based on the Tukey g-and-h distribution, with
+    skewness and kurtosis parameters optimized by minimizing an objective
+    function derived from the Anderson–Darling goodness-of-fit statistic
+    with Stephen's correction factor. Parameter estimation is performed 
+    using the L-BFGS-B algorithm to improve the fit to the standard normal
+    distribution. The OSKT approach aims to balance symmetry and tail 
+    behavior and can be used as an alternative to power-based transformations
+    such as Box-Cox and Yeo-Johnson, as well as moment-matching methods based 
+    on the Lambert W x F.
+Depends: R (>= 4.1.0)
+Imports: Rcpp, stats, doParallel, foreach, parallel, groupcompare
+LinkingTo: Rcpp
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
+License: GPL (>= 2)
+Encoding: UTF-8
